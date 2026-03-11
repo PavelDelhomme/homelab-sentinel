@@ -1,0 +1,42 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    container_name: homelab-api
+    restart: unless-stopped
+    ports:
+      - "5500:5500"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://homelab:secret@db:5432/homelab
+      - SECRET_KEY=change-me-in-production
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      - db
+      - mosquitto
+    volumes:
+      - ./app:/app/app
+
+  db:
+    image: postgres:16-alpine
+    container_name: homelab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: homelab
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: homelab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: homelab-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+
+volumes:
+  pgdata:
