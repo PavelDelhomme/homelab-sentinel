@@ -4,6 +4,29 @@ Suivi du matériel et de l’avancement des phases. À mettre à jour au fil des
 
 ---
 
+## Ce qui a été fait (système de base)
+
+- **Déploiement 100 % depuis le PC** : `make bootstrap`, `make install` ou `make install-native`, `make update` / `make update-native`, `make sync`, `make status`, `make remmina-profile`. Tout envoie ou configure sur la **Raspberry** ; rien ne tourne en prod sur la machine de dev.
+- **Backend** : API FastAPI (port 5500), PostgreSQL, Mosquitto. Deux modes sur la Pi — **Docker** (make install/update) ou **native** (make install-native/update-native, plus léger pour Pi 2).
+- **Firmware** : dossiers `firmware/` (prises ESP32, gamelle RFID) synchronisés avec `make sync` ; flash ESP32/Arduino à part (PC → câble USB ou OTA plus tard).
+- **OpenWrt** : configs dans `openwrt/` (network, nftables) pour la phase 2 (Pi en routeur avec dongle). Doc : [docs/openwrt_phase2.md](docs/openwrt_phase2.md).
+- **Testé en local** : `make help`, `make remmina-profile`, **`make openwrt-info`**, `make test-backend-local` (backend Docker puis curl http://localhost:5500/ et /api/docs — OK). Conteneurs arrêtés après test.
+
+---
+
+## Management, monitoring, app mobile, tunnel sécurisé et DNS
+
+Pour **gérer et monitorer** le homelab (dont le **DNS**) depuis **n’importe où** avec une **interface mobile** et un **tunnel ultra sécurisé** :
+
+- **Tunnel** : accès distant sans ouvrir de ports sur la box — **Tailscale** (recommandé), ou WireGuard / Cloudflare Tunnel. Une fois Tailscale sur la Pi et sur le téléphone, accès à l’API (et au futur dashboard) via l’IP Tailscale depuis n’importe où.
+- **Interface mobile** : PWA du dashboard (ajout à l’écran d’accueil) puis, si besoin, app dédiée ; accès uniquement via le tunnel.
+- **DNS** : gestion des noms locaux (homelab.local, api.homelab, etc.) via dnsmasq/Unbound sur la Pi ou OpenWrt ; l’app mobile pourra piloter le DNS via une API dédiée (à venir).
+- **Monitoring** : endpoint `/health` et métriques optionnelles ; affichage dans le dashboard et l’app.
+
+Doc détaillée : **[docs/management_mobile_tunnel_dns.md](docs/management_mobile_tunnel_dns.md)**.
+
+---
+
 ## Matériel
 
 ### Possédé
@@ -40,28 +63,44 @@ Référence : [liste d’achats complète](guide_domotique_complet.md#12-liste-d
 
 **Objectif** : configurer en une fois (script automatique) l’**IP statique**, **SSH** et **RDP** au démarrage, pour te connecter à distance sans rien faire à la main. Le script détecte tout seul le réseau (passerelle, DNS, fin de plage DHCP) et applique la config.
 
-**Connexion actuelle** : si tu es en **partage de connexion USB** (téléphone → Pi), évite de débrancher pendant les opérations **apt** ou **dpkg** (mise à jour, installation). Une déconnexion peut laisser **dpkg interrompu** et bloquer apt. Le script tente de réparer dpkg au démarrage ; si le problème persiste, utilise la procédure manuelle ci‑dessous.
+**Connexion actuelle** : Pi branchée sur la **box en Ethernet**. IP actuelle : **192.168.1.37**. **VNC** fonctionne déjà — tu te connectes en VNC à 192.168.1.37. Pas de wlan0 (réseau à vérifier au moment d’envoyer le script si besoin).
 
-En **USB**, le script **ne configure pas l’IP statique** (passerelle 10.x.x.x détectée) : il active seulement **SSH** et **xrdp** au démarrage. Tu peux te connecter tout de suite en SSH/RDP/VNC à l’IP actuelle (ex. 10.117.216.143). Une fois la Pi branchée sur la box en Ethernet, relancer le script pour configurer l’IP fixe.
+**À faire** : envoyer le script depuis ton PC pour configurer l’**IP statique 192.168.1.37** (obligatoire), **SSH** et **xrdp** au démarrage. Ensuite connexion à distance en **VNC** (déjà en place), **SSH** ou **RDP**.
 
 ---
 
-### Envoyer et lancer le script depuis ton PC (Pi en USB, ex. 10.117.216.143)
+### Envoyer et lancer le script depuis ton PC (Pi sur la box, IP 192.168.1.37)
 
-Depuis ton **ordinateur fixe** (dans le dossier du dépôt homelab-sentinel), en une seule commande : envoyer le script sur la Pi puis l’exécuter. Remplace `<IP_PI>` par l’IP actuelle de la Pi (ex. **10.117.216.143** si tu es en partage USB).
+Connexion **VNC** déjà en place sur **192.168.1.37**. Depuis ton **ordinateur fixe** (dans le dossier du dépôt homelab-sentinel), en une seule commande : envoyer le script sur la Pi puis l’exécuter avec **IP statique 192.168.1.37** (obligatoire pour l’accès à distance).
 
 ```bash
 cd /chemin/vers/homelab-sentinel
-scp scripts/raspberry_setup_auto.sh pavel@<IP_PI>:~/ && ssh pavel@<IP_PI> 'chmod +x ~/raspberry_setup_auto.sh && sudo ~/raspberry_setup_auto.sh'
+scp scripts/raspberry_setup_auto.sh pavel@192.168.1.37:~/ && ssh pavel@192.168.1.37 'chmod +x ~/raspberry_setup_auto.sh && sudo STATIC_IP=192.168.1.37 ~/raspberry_setup_auto.sh'
 ```
 
-Exemple avec l’IP en USB :
+Tu entres le mot de passe **pavel** quand `scp` et `ssh` le demandent. Le script : répare dpkg si besoin, configure l’**IP statique 192.168.1.37** sur eth0, active **SSH** et **xrdp** au démarrage. Pas de wlan0 (réseau à vérifier si besoin après envoi).
 
-```bash
-scp scripts/raspberry_setup_auto.sh pavel@10.117.216.143:~/ && ssh pavel@10.117.216.143 'chmod +x ~/raspberry_setup_auto.sh && sudo ~/raspberry_setup_auto.sh'
-```
+**Connexion à distance** (après script + redémarrage si proposé) :
+- **VNC** : directement à **192.168.1.37** (déjà en place).
+- **SSH** : `ssh pavel@192.168.1.37`
+- **RDP** : client RDP, adresse **192.168.1.37**, port 3389, utilisateur pavel.
 
-Tu entres le mot de passe **pavel** quand `scp` et `ssh` le demandent. Le script tourne sur la Pi : il répare dpkg si besoin, n’applique **pas** d’IP statique (connexion USB), active SSH et xrdp, et affiche l’IP actuelle pour te connecter en SSH/RDP/VNC. Ensuite tu peux brancher la Pi sur la box (Ethernet) et relancer la même commande (avec la nouvelle IP en 192.168.x.x) pour configurer l’IP fixe.
+Sur ton **PC fixe** (Arch), pour installer un client RDP graphique correct (Remmina, gratuit, open source) à la place de « Connexions bureau » GNOME : exécuter **`scripts/install_rdp_client.sh`** (installe Remmina + FreeRDP). Ensuite lancer Remmina, nouvelle connexion RDP vers 192.168.1.37:3389, utilisateur pavel.
+
+**Profil Remmina prêt à l’emploi** : exécuter **`scripts/install_remmina_profile.sh`** ou **`make remmina-profile`** pour copier la connexion « Pi Homelab (192.168.1.37) » dans Remmina (mot de passe pavel à la demande). Le profil est réglé en **1920×1080** fixe (pas de scale) et presse-papiers activé ; si le copier-coller ne marche pas, voir [docs/connexion_rdp_vnc_pi.md](docs/connexion_rdp_vnc_pi.md).
+
+**RDP = nouvelle session** (pas le même écran qu’en VNC/HDMI). Pour le **rendu direct** (écran en live), utiliser **VNC**. **Clavier AZERTY** : le script **raspberry_setup_auto.sh** configure maintenant le clavier français (AZERTY) sur la Pi et l’autostart `setxkbmap fr` pour les sessions graphiques. Si tu as déjà lancé le script avant cette mise à jour, relance-le une fois, ou en session (RDP/VNC) exécuter : `setxkbmap fr`. Détail : [docs/connexion_rdp_vnc_pi.md](docs/connexion_rdp_vnc_pi.md).
+
+**Dépannage dpkg/apt** : si après un `apt upgrade` tu as des erreurs (adduser, systemd, dbus, udev, bluez, etc.), voir [docs/pi_repair_dpkg.md](docs/pi_repair_dpkg.md). Réparation rapide depuis le PC :  
+`scp scripts/pi_repair_dpkg.sh pavel@192.168.1.37:~/ && ssh pavel@192.168.1.37 'chmod +x ~/pi_repair_dpkg.sh && sudo ~/pi_repair_dpkg.sh'`
+
+**Tout depuis le PC (déploiement, mise à jour)** : **[docs/workflow_pc_vers_pi.md](docs/workflow_pc_vers_pi.md)**. **Une seule action de ta part** (si la Pi n’est pas encore configurée) : **`make bootstrap`** (tu entres le mot de passe pavel une fois), redémarre la Pi, puis **`make install`** ou **`make install-native`**. Ensuite **`make update`** / **`make update-native`** à chaque modification — tout est automatique.
+
+**Backend sur la Pi (sans surcharger)** : deux options — **Docker** (`make install` / `make update`) ou **install native** plus légère (`make install-native` / `make update-native`) : PostgreSQL, Mosquitto et l’API en service systemd, sans conteneurs. Recommandé pour Pi 2 : **`make install-native`** puis **`make update-native`**. Voir [docs/workflow_pc_vers_pi.md](docs/workflow_pc_vers_pi.md).
+
+**OpenWrt (routage / box)** : phase 2, quand tu auras **une deuxième interface**. La **Pi 2 n’a pas de WiFi intégré** (un seul Ethernet eth0) : il faut un **dongle USB-Ethernet** (recommandé, second câble) ou un dongle USB-WiFi. Configs dans **`openwrt/`**, doc : **[docs/openwrt_phase2.md](docs/openwrt_phase2.md)**. **`make openwrt-info`** (sur le PC, sans Pi ni dongle) affiche les étapes et la liste des configs. Sync envoie `openwrt/` sur la Pi ; pour une Pi flashee en OpenWrt, tu copies les configs à la main.
+
+**Commandes exécutables sur cette machine (sans Pi)** : **`make test-backend-local`** lance le backend en Docker en local (test) ; **`make stop-backend-local`** l’arrête. **`make openwrt-info`** affiche les infos OpenWrt.
 
 ---
 
@@ -108,8 +147,9 @@ Tu entres le mot de passe **pavel** quand `scp` et `ssh` le demandent. Le script
 6. **Redémarrer** la Pi (si tu as répondu oui au script, c’est déjà fait). Sinon : `sudo reboot`. Attendre 1–2 min.
 
 7. **Se connecter à distance** :
-   - **SSH** : `ssh pavel@192.168.1.50` (remplacer par l’IP affichée par le script si différente).
-   - **RDP** : sur ton PC, ouvrir un client RDP (Remmina, Bureau à distance Windows), adresse **192.168.1.50**, port **3389**, utilisateur **pavel**, mot de passe. Après chaque reboot de la Pi, même chose : rien à reconfigurer.
+   - **VNC** : directement à **192.168.1.37** (déjà en place).
+   - **SSH** : `ssh pavel@192.168.1.37` (ou l’IP fixe si tu as lancé le script avec STATIC_IP=192.168.1.37).
+   - **RDP** : client RDP (Remmina, Bureau à distance Windows), adresse **192.168.1.37**, port **3389**, utilisateur **pavel**.
 
 ---
 
@@ -120,8 +160,8 @@ Tu entres le mot de passe **pavel** quand `scp` et `ssh` le demandent. Le script
 | **dpkg/apt** | Si une installation a été interrompue : `dpkg --configure -a` puis `apt --fix-broken install`. Évite de lancer le script sans connexion stable (risque de re-interrompre). |
 | **Connexion USB** | Si passerelle en **10.x.x.x** (partage USB) : **pas d’IP statique**, seulement SSH + xrdp. Connecte-toi à l’IP actuelle (ex. 10.117.216.143). Branche la Pi sur la box puis relance le script pour l’IP fixe. |
 | Réseau | Détection de la passerelle par défaut et des DNS (Bbox ou USB). |
-| Interface | Utilise **eth0** pour l’IP statique (quand pas en USB). Si **wlan0** existe, configure aussi le WiFi en statique (.51) sur le réseau de la box. |
-| IP statique | Choisit une IP en .50 (ex. 192.168.1.50) pour rester hors plage DHCP courante. Tu peux forcer une IP : `sudo STATIC_IP=192.168.1.51 ./raspberry_setup_auto.sh`. |
+| Interface | Utilise **eth0** pour l’IP statique (quand pas en USB). Pas de wlan0 sur cette Pi. Si wlan0 existait, le script configurerait aussi le WiFi en .51. |
+| IP statique | Par défaut .50 ; pour **192.168.1.37** (obligatoire ici) : `sudo STATIC_IP=192.168.1.37 ./raspberry_setup_auto.sh`. |
 | dhcpcd | Sauvegarde de `/etc/dhcpcd.conf`, ajout du bloc eth0 statique (sans toucher au reste). |
 | SSH | `systemctl enable --now ssh`. |
 | xrdp | `apt install -y xrdp` si besoin, puis `systemctl enable --now xrdp`. |
@@ -192,9 +232,9 @@ Guide détaillé : **[docs/pc_bluetooth_logitech.md](docs/pc_bluetooth_logitech.
 
 | Phase | Description | Statut |
 |-------|-------------|--------|
-| 0 / Premiers pas | Pi en **client** sur la box : Raspberry Pi OS, Ethernet, IP statique, SSH ([docs/pi_client_box.md](docs/pi_client_box.md)) | Non démarré |
-| 1 | Optionnel plus tard : Pi en routeur (OpenWrt + dongle), firewall, WireGuard, relais box | Non démarré |
-| 2 | Infra serveur (Docker, MQTT, PostgreSQL, FastAPI) | Non démarré |
+| 0 / Premiers pas | Pi en **client** sur la box : Raspberry Pi OS, Ethernet, IP statique, SSH ([docs/pi_client_box.md](docs/pi_client_box.md)) | En place (script + bootstrap) |
+| 1 | Optionnel plus tard : Pi en routeur (OpenWrt + dongle), firewall, WireGuard, relais box — [docs/openwrt_phase2.md](docs/openwrt_phase2.md) | Prévu (configs dans `openwrt/`) |
+| 2 | Infra serveur : backend (API FastAPI), PostgreSQL, Mosquitto — **Docker** (`make install`/`update`) ou **native** (`make install-native`/`update-native`) | Prêt (scripts + Makefile, testé en local) |
 | 3 | Premier device IoT (prise ESP32, MQTT, dashboard) | Non démarré |
 | 4 | Caméras + NVR (Frigate) | Non démarré |
 | 5 | Gamelle RFID chat | Non démarré |
@@ -205,19 +245,25 @@ Guide détaillé : **[docs/pc_bluetooth_logitech.md](docs/pc_bluetooth_logitech.
 
 Voir **[docs/premiers_pas_complet.md](docs/premiers_pas_complet.md)** pour le détail étape par étape. En résumé : flash SD (SSH activé) → brancher Pi sur la box → trouver l’IP → première connexion SSH → IP statique → SSH + xrdp au démarrage → test accès à distance.
 
-### Détail Phase 1 (optionnel, quand dongle + matos)
+### Détail Phase 1 — OpenWrt (optionnel, quand dongle)
 
-- [ ] Flasher OpenWrt sur Pi 2 (si tu veux la Pi en routeur).
-- [ ] Configurer WAN (eth1 = dongle) / LAN (eth0).
-- [ ] Installer driver USB-Ethernet (selon chipset : RTL8152, AX88179, etc.).
+- **Pi 2** : **pas de WiFi intégré**, un seul port Ethernet (eth0). Pour faire WAN + LAN il faut **au moins une interface en plus** :
+  - **Dongle USB-Ethernet** (recommandé) : eth0 = LAN, eth1 = WAN (ou l’inverse). Tu branches le dongle en second câble vers la box.
+  - **Dongle USB-WiFi** : eth0 + wlan0 possible mais moins courant pour un routeur.
+- **Sans dongle** : on peut préparer les configs et les tester sur le PC (**`make openwrt-info`**). Le flash OpenWrt sur la Pi se fera quand tu auras le dongle.
+- [ ] Flasher OpenWrt sur Pi 2 (image arm 32-bit).
+- [ ] Installer driver USB-Ethernet (RTL8152 ou AX88179 selon dongle), reboot.
+- [ ] Copier `openwrt/network.example.conf` → `/etc/config/network`, puis `/etc/init.d/network restart`.
 - [ ] Firewall nftables (voir `openwrt/nftables.example.conf`).
-- [ ] WireGuard (PiVPN).
+- [ ] WireGuard ou Tailscale (accès distant).
 - [ ] Relais reboot box + script `scripts/watchdog_box.py`.
 
 ---
 
 ## Notes
 
-- **Pi** : on garde **Raspberry Pi OS** (pas OpenWrt). La Pi est un **client** sur la box ; pas de routage pour l’instant. Voir [docs/pi_client_box.md](docs/pi_client_box.md).
+- **Système de base** : tout est conçu pour être lancé **depuis le PC** et déployé sur la **Raspberry** (sync, mise à jour, backend). Rien ne tourne en production sur la machine de dev : **`make sync`** / **`make update`** / **`make update-native`** envoient le code sur la Pi et redémarrent le backend là-bas. Backend (API, BDD, MQTT) testé en local avec **Docker** (`cd backend && docker compose up -d` puis `curl http://localhost:5500/`).
+- **Option légère (sans Docker)** : pour ne pas surcharger la Pi 2, utiliser **`make install-native`** puis **`make update-native`** : PostgreSQL et Mosquitto en paquets système, API en service systemd (`homelab-api.service`). Compatible avec le même code que Docker.
+- **Pi** : on garde **Raspberry Pi OS** (pas OpenWrt pour l’infra). La Pi est un **client** sur la box ; OpenWrt est pour plus tard (routeur avec dongle). Voir [docs/pi_client_box.md](docs/pi_client_box.md) et [docs/openwrt_phase2.md](docs/openwrt_phase2.md).
 - **Arduino** : non connecté pour l’instant ; prévu pour gamelle / prises ou autre selon le guide quand le matériel sera là.
-- **Dongle** : seulement si tu veux plus tard faire de la Pi un routeur ; voir `openwrt/` et guide §1.
+- **Dongle** : pour faire de la Pi un **routeur** (OpenWrt) il faut une **deuxième interface** : dongle USB-Ethernet (recommandé) ou USB-WiFi. Voir [docs/openwrt_phase2.md](docs/openwrt_phase2.md) et **`make openwrt-info`**.

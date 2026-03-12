@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     DATABASE_URL: str = "postgresql+asyncpg://homelab:secret@localhost:5432/homelab"
     MQTT_HOST: str | None = None
-    MQTT_PORT: int = 8883
+    MQTT_PORT: int = 1883
 
     class Config:
         env_file = ".env"

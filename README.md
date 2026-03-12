@@ -41,11 +41,15 @@ Suivi détaillé : **[STATUS.md](STATUS.md)**.
 
 | Dossier / Fichier | Description |
 |-------------------|-------------|
+| **Makefile** | Déploiement depuis le PC : **`make install`** (init sur la Pi), **`make update`** (mise à jour + redémarrage backend). Voir [docs/workflow_pc_vers_pi.md](docs/workflow_pc_vers_pi.md). |
 | `guide_domotique_complet.md` | Guide technique de référence (architecture, configs, code). |
 | `STATUS.md` | État du matériel, des achats et des phases. |
 | `docs/pi_client_box.md` | **Premiers pas** : connecter la Pi à la box (Raspberry Pi OS), IP statique, SSH. |
 | `docs/premiers_pas_complet.md` | **Configuration de base** : tout depuis ton PC (Rasp de base, OS, Ethernet) → SSH + RDP au démarrage, IP statique. |
 | `docs/raspberry_ssh_rdp_acces_distant.md` | **Accès à distance** : config SSH + RDP (xrdp) sur la Pi, activation au démarrage, clients RDP (Remmina, etc.). |
+| `docs/workflow_pc_vers_pi.md` | **Tout depuis le PC** : make install / make update, sync, Remmina (1920×1080, presse-papiers). |
+| `docs/management_mobile_tunnel_dns.md` | **Management / monitoring** : app mobile, tunnel sécurisé (Tailscale/WireGuard), DNS, accès de n’importe où. |
+| `docs/openwrt_phase2.md` | **OpenWrt** : Pi en routeur avec dongle USB-Ethernet (Pi 2 = pas de WiFi intégré). |
 | `docs/pi_wifi_et_eth_static.md` | **Pas encore en Ethernet** : WiFi statique (wlan0) + Ethernet statique (eth0) préparée pour plus tard. |
 | `docs/pc_bluetooth_logitech.md` | **PC fixe** : Bluetooth au démarrage, vérifier la connexion, connecter Logitech Craft et MX Master 3. |
 | `openwrt/` | Configs exemple pour Pi en **routeur** (optionnel, quand tu auras un dongle USB-Ethernet). |
@@ -57,8 +61,9 @@ Suivi détaillé : **[STATUS.md](STATUS.md)**.
 
 ## Démarrage rapide (plus tard)
 
+- **Tout depuis ton PC** : à la racine du dépôt, **`make bootstrap`** une fois (mot de passe pavel à la demande), redémarre la Pi, puis **`make install`**. Ensuite **`make update`** pour mettre à jour la Pi et redémarrer le backend sans interaction. Détail : [docs/workflow_pc_vers_pi.md](docs/workflow_pc_vers_pi.md).
 - **Pi sur la box** : suivi pas à pas dans [docs/pi_client_box.md](docs/pi_client_box.md) (Raspberry Pi OS, Ethernet, IP statique, SSH). Pas d’OpenWrt.
 - **Pi en routeur** (optionnel, avec dongle) : voir guide §1 et `openwrt/`.
-- **Backend** : depuis la racine du repo, `cd backend && docker compose up -d` (ou sur la Pi une fois Docker installé).
+- **Backend** : depuis la racine du repo, `make update` (déploie sur la Pi) ou en local `cd backend && docker compose up -d`.
 
 Le détail des commandes et de la config est toujours dans **guide_domotique_complet.md**.

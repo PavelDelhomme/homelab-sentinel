@@ -14,12 +14,18 @@
 set -e
 
 # --- Variables modifiables (optionnel) ---
+# IP statique (obligatoire pour accès à distance si tu veux garder 192.168.1.37)
 STATIC_IP="${STATIC_IP:-}"
 INTERFACE="${INTERFACE:-eth0}"
 INTERFACE_WLAN="${INTERFACE_WLAN:-wlan0}"
 FIX_DPKG="${FIX_DPKG:-true}"
 # Connexion USB : ne pas configurer l’IP statique (détecté auto si passerelle 10.x)
 SKIP_STATIC_IP="${SKIP_STATIC_IP:-}"
+# Mode non interactif (bootstrap depuis le PC) : pas de question, pas de read
+NONINTERACTIVE="${NONINTERACTIVE:-}"
+SKIP_REBOOT_PROMPT="${SKIP_REBOOT_PROMPT:-}"
+# Si AUTO_REBOOT=1 et non-interactif : redémarrer à la fin
+AUTO_REBOOT="${AUTO_REBOOT:-0}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -55,8 +61,12 @@ apt-get update -qq || warn "apt update a échoué (réseau ?). On continue."
 # --- Vérifier qu'on est bien sur une Pi (optionnel) ---
 if [[ -f /etc/os-release ]]; then
   if ! grep -qi raspbian /etc/os-release 2>/dev/null && ! grep -qi "raspberry pi os" /etc/os-release 2>/dev/null; then
-    warn "Ce système ne semble pas être Raspberry Pi OS. Continuer quand même ? (o/N)"
-    read -r r; [[ "${r,,}" != "o" ]] && exit 1
+    if [[ -n "$NONINTERACTIVE" ]] || [[ -n "$SKIP_REBOOT_PROMPT" ]]; then
+      warn "Ce système ne semble pas être Raspberry Pi OS. On continue."
+    else
+      warn "Ce système ne semble pas être Raspberry Pi OS. Continuer quand même ? (o/N)"
+      read -r r; [[ "${r,,}" != "o" ]] && exit 1
+    fi
   fi
 fi
 
@@ -167,6 +177,46 @@ fi
 systemctl start xrdp 2>/dev/null || true
 info "xrdp : actif (port 3389)."
 
+# --- Sudo sans mot de passe pour Docker (pour make update sans interaction) ---
+SUDOERS_D="/etc/sudoers.d"
+SUDOERS_FILE="$SUDOERS_D/99-homelab-docker"
+if [[ ! -f "$SUDOERS_FILE" ]]; then
+  echo "pavel ALL=(ALL) NOPASSWD: /usr/bin/docker" > "$SUDOERS_FILE"
+  chmod 440 "$SUDOERS_FILE"
+  info "Sudo sans mot de passe pour Docker (pavel) : configuré."
+fi
+
+# --- Clavier AZERTY (session graphique RDP/VNC) ---
+info "Configuration du clavier français (AZERTY)..."
+KEYBOARD_CONF="/etc/default/keyboard"
+if [[ -f "$KEYBOARD_CONF" ]]; then
+  if ! grep -q 'XKBLAYOUT="fr"' "$KEYBOARD_CONF" 2>/dev/null; then
+    sed -i 's/^XKBLAYOUT=.*/XKBLAYOUT="fr"/' "$KEYBOARD_CONF" 2>/dev/null || true
+    [[ -z "$(grep XKBLAYOUT "$KEYBOARD_CONF")" ]] && echo 'XKBLAYOUT="fr"' >> "$KEYBOARD_CONF"
+    info "Clavier système : French (AZERTY)."
+  fi
+fi
+for uhome in /home/*/; do
+  [[ -d "$uhome" ]] || continue
+  u=$(basename "$uhome")
+  [[ "$u" == "lost+found" ]] && continue
+  AUTOSTART="$uhome/.config/autostart"
+  mkdir -p "$AUTOSTART"
+  if [[ ! -f "$AUTOSTART/setxkbmap-fr.desktop" ]]; then
+    cat > "$AUTOSTART/setxkbmap-fr.desktop" << 'AUTOSTART_EOF'
+[Desktop Entry]
+Type=Application
+Name=Clavier AZERTY
+Exec=setxkbmap fr
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+AUTOSTART_EOF
+    chown "$u:$u" "$AUTOSTART/setxkbmap-fr.desktop" 2>/dev/null || true
+    info "Autostart setxkbmap fr pour utilisateur $u."
+  fi
+done
+
 # --- Résumé ---
 echo ""
 echo -e "${GREEN}=== Configuration terminée ===${NC}"
@@ -182,6 +232,11 @@ if [[ "$SKIP_STATIC_IP" == "1" ]]; then
   echo ""
   echo "  Ensuite : branchez la Pi sur la box en Ethernet, relancez ce script pour configurer l’IP fixe."
   echo ""
+  if [[ -n "$SKIP_REBOOT_PROMPT" ]] || [[ -n "$NONINTERACTIVE" ]]; then
+    echo "  Redémarrez quand vous voulez : sudo reboot"
+    [[ "$AUTO_REBOOT" == "1" ]] && reboot
+    exit 0
+  fi
   read -p "Redémarrer maintenant (recommandé pour SSH/xrdp) ? (o/N) " r
 else
   echo "  Interface   : $INTERFACE"
@@ -196,6 +251,15 @@ else
   echo "    SSH : ssh pavel@$STATIC_IP"
   echo "    RDP : adresse $STATIC_IP, port 3389, utilisateur pavel"
   echo ""
+  if [[ -n "$SKIP_REBOOT_PROMPT" ]] || [[ -n "$NONINTERACTIVE" ]]; then
+    echo "  Redémarrez pour appliquer l'IP statique : sudo reboot"
+    if [[ "$AUTO_REBOOT" == "1" ]]; then
+      echo "  Redémarrage automatique dans 5 s..."
+      sleep 5
+      reboot
+    fi
+    exit 0
+  fi
   read -p "Redémarrer maintenant ? (o/N) " r
 fi
 if [[ "${r,,}" == "o" ]]; then

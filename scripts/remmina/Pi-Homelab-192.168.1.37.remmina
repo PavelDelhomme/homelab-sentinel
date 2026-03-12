@@ -1,0 +1,21 @@
+[remmina]
+name=Pi Homelab (192.168.1.37)
+protocol=RDP
+server=192.168.1.37
+port=3389
+username=pavel
+resolution_mode=0
+colordepth=32
+disable_fastpath=0
+quality=1
+viewmode=2
+resolution_width=1920
+resolution_height=1080
+disableclipboard=0
+sound=off
+enableaudio=0
+console=0
+ignore-tls-errors=1
+cert_ignore=1
+gateway_usage=0
+window_maximize=1

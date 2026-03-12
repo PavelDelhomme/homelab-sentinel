@@ -1,0 +1,24 @@
+# Service systemd pour l'API Homelab Sentinel (install native sur la Pi).
+# À installer dans /etc/systemd/system/ après make install-native.
+# Dépendances : PostgreSQL, Mosquitto (actifs).
+
+[Unit]
+Description=Homelab Sentinel API
+After=network.target postgresql.service mosquitto.service
+Wants=postgresql.service mosquitto.service
+
+[Service]
+Type=simple
+User=pavel
+Group=pavel
+WorkingDirectory=/home/pavel/homelab-sentinel/backend
+Environment=DATABASE_URL=postgresql+asyncpg://homelab:secret@localhost:5432/homelab
+Environment=MQTT_HOST=localhost
+Environment=MQTT_PORT=1883
+Environment=SECRET_KEY=change-me-in-production
+ExecStart=/home/pavel/homelab-sentinel/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 5500
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
