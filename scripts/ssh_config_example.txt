@@ -1,0 +1,13 @@
+# Copier ce bloc dans ~/.ssh/config sur ton PC pour "ssh pi-homelab" (terminal, nano, vim, commandes).
+# Ce bloc ne concerne QUE la Pi : il n'affecte pas GitHub (git@github.com).
+#
+# Test GitHub après ajout :  ssh -T git@github.com   (avec T MAJUSCULE, pas -t)
+# Fichier : ~/.ssh/config  (touch ~/.ssh/config && chmod 600 ~/.ssh/config)
+#
+# Cursor Remote SSH vers la Pi 2 ne fonctionne PAS (armv7l non supporté). Coder sur le PC, puis make push.
+
+Host pi-homelab
+    HostName 192.168.1.37
+    User pavel
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519

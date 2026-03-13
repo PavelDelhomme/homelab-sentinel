@@ -9,9 +9,9 @@ Tu codes sur ton PC, tu déploies et tu mets à jour la Pi **sans quitter ta mac
 1. **Brancher la Pi** en Ethernet sur la box et l’allumer.
 2. Depuis le PC, à la racine du dépôt : **`make bootstrap`**. Tu entres **une seule fois** le mot de passe de l’utilisateur **pavel** quand il est demandé. Le script configure la Pi (IP statique 192.168.1.37, SSH, xrdp, AZERTY, Docker sans mot de passe).
 3. Redémarrer la Pi : **`ssh pavel@192.168.1.37 'sudo reboot'`** (ou via VNC). Attendre 1–2 min.
-4. **`make install`** (Docker) ou **`make install-native`** (sans Docker, plus léger) : envoie le projet, démarre le backend sur la Pi, et installe le profil Remmina sur ton PC. **Aucune interaction.**
+4. **`make install`** : envoie le projet, démarre le backend en **Docker** sur la Pi, et installe le profil Remmina sur ton PC. **Aucune interaction.**
 
-Si la Pi n’est pas encore en 192.168.1.37 (première connexion en DHCP) : **`make bootstrap PI_IP=raspberrypi.local`**, puis après redémarrage **`make install`** ou **`make install-native`**. Ensuite **`make update`** ou **`make update-native`** à chaque modification — tout se fait sans que tu touches à rien.
+Si la Pi n’est pas encore en 192.168.1.37 (première connexion en DHCP) : **`make bootstrap PI_IP=raspberrypi.local`**, puis après redémarrage **`make install`**. Ensuite **`make update`** ou **`make push`** à chaque déploiement — tout se fait sans que tu touches à rien.
 
 ---
 
@@ -27,17 +27,16 @@ Si la Pi n’est pas encore en 192.168.1.37 (première connexion en DHCP) : **`m
 | Commande | Rôle |
 |----------|------|
 | **`make bootstrap`** | **Une seule fois** : copie ta clé SSH sur la Pi (tu entres le mot de passe pavel une fois) et lance le script de config Pi (IP statique, SSH, xrdp, AZERTY, Docker sans mot de passe). Ensuite plus besoin de mot de passe pour `make install` / `make update`. |
-| **`make install`** | Première fois après bootstrap : Docker sur la Pi + backend. |
-| **`make install-native`** | Première fois après bootstrap : **sans Docker** (PostgreSQL + Mosquitto + service systemd) — plus léger pour la Pi 2. |
+| **`make install`** | Première fois après bootstrap : Docker sur la Pi + backend + profil Remmina sur le PC. |
 | **`make update`** | Met à jour les fichiers sur la Pi et redémarre le backend (Docker). Aucune interaction. |
-| **`make update-native`** | Met à jour les fichiers et redémarre le service systemd (si tu as utilisé install-native). |
-| **`make sync`** | Synchronise uniquement les fichiers (sans redémarrer les services). |
-| **`make shell`** | Ouvre une session SSH sur la Pi. |
-| **`make status`** | Affiche l’état des conteneurs sur la Pi. |
+| **`make push`** | Identique à `make update` (sync + redémarrage backend) — raccourci pour déployer. |
+| **`make sync`** | Synchronise uniquement les fichiers (sans redémarrer le backend). |
+| **`make shell`** | Ouvre une session SSH sur la Pi (ou utilise **`ssh pi-homelab`** si tu as configuré `~/.ssh/config`). |
+| **`make status`** | Affiche l’état des conteneurs Docker sur la Pi. |
 | **`make remmina-profile`** | Installe le profil Remmina (connexion 192.168.1.37, 1920×1080) sur ce PC. |
 
 Tu peux surcharger l’IP ou l’utilisateur :  
-`make update PI_IP=192.168.1.50` ou `make install PI_USER=pi`.
+`make push PI_IP=192.168.1.50` ou `make install PI_USER=pi`.
 
 ---
 
@@ -53,7 +52,7 @@ Tu peux surcharger l’IP ou l’utilisateur :
 ## Ordre conseillé
 
 1. **Une seule fois** (si la Pi n’est pas encore configurée) : **`make bootstrap`** (tu entres le mot de passe pavel quand demandé). Puis redémarrer la Pi et lancer **`make install`**. C’est tout.
-2. **Au quotidien** : tu modifies le code sur ton PC, puis **`make update`** — aucun mot de passe, aucune action sur la Pi. Tu peux vérifier en VNC/Remmina ou avec **`make status`**.
+2. **Au quotidien** : tu modifies le code sur ton PC, puis **`make push`** ou **`make update`** — aucun mot de passe, aucune action sur la Pi. Tu peux vérifier en VNC/Remmina ou avec **`make status`**. Alias possible : **`homelab-push`** (voir [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md)).
 
 ---
 
@@ -68,10 +67,16 @@ Tu peux surcharger l’IP ou l’utilisateur :
 ## Dépannage
 
 - **`make install` ou `make update` : connexion refusée**  
-  Vérifier que la Pi est allumée, sur le réseau (192.168.1.37), et que SSH est actif : `ssh pavel@192.168.1.37`.
+  Vérifier que la Pi est allumée, sur le réseau (192.168.1.37), et que SSH est actif : `ssh pavel@192.168.1.37` ou `ssh pi-homelab` (si config SSH).
 
 - **Backend ne démarre pas sur la Pi**  
-  Se connecter en SSH (`make shell`) puis : `cd ~/homelab-sentinel/backend && sudo docker compose logs -f`.
+  Se connecter en SSH (`make shell` ou `ssh pi-homelab`) puis : `cd ~/homelab-sentinel/backend && sudo docker compose logs -f`.
 
 - **Changer l’IP de la Pi**  
-  Utiliser `make update PI_IP=192.168.1.XX` (et adapter le profil Remmina si besoin).
+  Utiliser `make push PI_IP=192.168.1.XX` (et adapter le profil Remmina si besoin).
+
+- **Test GitHub en SSH sur le PC**  
+  Utiliser **`ssh -T git@github.com`** (avec un **T majuscule**). Avec **`-t`** (minuscule) tu obtiens « PTY allocation request failed » : ce n’est pas une panne GitHub, juste la mauvaise option. Détail et config Git/GitHub sur la Pi : [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md).
+
+- **Cursor Remote SSH vers la Pi : « Architecture not supported: armv7l »**  
+  Cursor ne supporte pas la Pi 2 (armv7l). **Ne pas utiliser** Remote SSH vers la Pi. À la place : coder sur le PC dans Cursor (dépôt local), puis **`make push`** pour déployer ; pour un terminal ou une édition rapide sur la Pi : **`ssh pi-homelab`** puis nano/vim. Voir [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md).
