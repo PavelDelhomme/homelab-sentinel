@@ -22,6 +22,9 @@ Pour **gérer et monitorer** le homelab (dont le **DNS**) depuis **n’importe o
 - **Interface mobile** : PWA du dashboard (ajout à l’écran d’accueil) puis, si besoin, app dédiée ; accès uniquement via le tunnel.
 - **DNS** : gestion des noms locaux (homelab.local, api.homelab, etc.) via dnsmasq/Unbound sur la Pi ou OpenWrt ; l’app mobile pourra piloter le DNS via une API dédiée (à venir).
 - **Monitoring** : endpoint `/health` et métriques optionnelles ; affichage dans le dashboard et l’app.
+- **Carte réseau** : dans l’interface web, vue en temps réel des appareils connectés (box / réseau), léger pour la Pi.
+- **Inspection trafic** : voir les requêtes / modifications des appareils en continu pour détecter les problèmes (léger : logs DNS, métriques, pas de capture complète).
+- **Redémarrage depuis l’interface** : redémarrer services, Pi ou box depuis le dashboard (authentification + confirmation).
 
 Doc détaillée : **[docs/management_mobile_tunnel_dns.md](docs/management_mobile_tunnel_dns.md)**.
 
@@ -94,9 +97,15 @@ Sur ton **PC fixe** (Arch), pour installer un client RDP graphique correct (Remm
 **Dépannage dpkg/apt** : si après un `apt upgrade` tu as des erreurs (adduser, systemd, dbus, udev, bluez, etc.), voir [docs/pi_repair_dpkg.md](docs/pi_repair_dpkg.md). Réparation rapide depuis le PC :  
 `scp scripts/pi_repair_dpkg.sh pavel@192.168.1.37:~/ && ssh pavel@192.168.1.37 'chmod +x ~/pi_repair_dpkg.sh && sudo ~/pi_repair_dpkg.sh'`
 
+**make bootstrap : « dpkg frontend lock was locked »** : un autre processus (apt, mise à jour auto) utilise dpkg. **Attendre 2–5 min** puis relancer **make bootstrap**. Ne pas supprimer les fichiers lock. Détail : [docs/pi_repair_dpkg.md](docs/pi_repair_dpkg.md) § « dpkg frontend lock ».
+
+**make install / dpkg : « Segmentation fault » ou « adduser postinst killed by signal »** : sur Pi 2 (1 Go RAM) souvent manque de mémoire. Ajouter un swap avec **scripts/pi_add_swap.sh** (voir [docs/pi_repair_dpkg.md](docs/pi_repair_dpkg.md) § adduser segfault), redémarrer la Pi, puis sur la Pi : `sudo dpkg --configure -a` et `sudo apt-get -f install`. Ensuite make bootstrap ou make install depuis le PC.
+
+**Remmina ne se reconnecte pas après un reboot de la Pi** : attendre **1–2 min** que la Pi soit à jour (ping 192.168.1.37, puis `ssh pavel@192.168.1.37`). Si RDP ne répond toujours pas : en SSH sur la Pi, `sudo systemctl status xrdp` et si besoin `sudo systemctl restart xrdp`. Voir [docs/connexion_rdp_vnc_pi.md](docs/connexion_rdp_vnc_pi.md).
+
 **Tout depuis le PC (déploiement, mise à jour)** : **[docs/workflow_pc_vers_pi.md](docs/workflow_pc_vers_pi.md)**. Une fois la Pi configurée : **`make bootstrap`** (une fois), redémarrage Pi, puis **`make install`**. Ensuite **`make update`** ou **`make push`** à chaque déploiement.
 
-**Pousser les mises à jour** : **`make push`** ou **`make update`** (sync + redémarrage du backend Docker sur la Pi). Alias pratique : `alias homelab-push='cd /home/pactivisme/Documents/Dev/Perso/homelab/homelab-sentinel && make push'` dans ton `~/.zshrc`. Détail : [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md).
+**Pousser les mises à jour** : **`make push`** ou **`make update`** (sync + redémarrage du backend Docker sur la Pi). **La première fois** il faut d’abord faire **`make install`** (installe Docker sur la Pi et démarre le backend) ; sinon tu as « docker : commande introuvable ». Alias pratique : `alias homelab-push='cd /home/pactivisme/Documents/Dev/Perso/homelab/homelab-sentinel && make push'` dans ton `~/.zshrc`. Détail : [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md).
 
 **Cursor Remote SSH ne fonctionne pas sur Raspberry Pi 2** : le Cursor Server ne supporte pas l’architecture **armv7l**. Tu obtiens « Architecture not supported: armv7l ». **Workflow à utiliser** : coder sur le PC dans Cursor (dossier homelab-sentinel local), puis **`make push`** pour déployer sur la Pi. Pour agir sur la Pi (terminal, logs, édition rapide) : **`ssh pi-homelab`** (config **`Host pi-homelab`** dans **`~/.ssh/config`**, voir **`scripts/ssh_config_example.txt`**). Ça ne modifie pas GitHub : **test avec `ssh -T git@github.com`** (T majuscule). Git/GitHub sur la Pi (optionnel, pour commit/push depuis la Pi en SSH) : [docs/cursor_remote_ssh_pi.md](docs/cursor_remote_ssh_pi.md).
 

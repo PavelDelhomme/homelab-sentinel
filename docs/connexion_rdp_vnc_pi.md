@@ -46,3 +46,17 @@ Le dépôt contient un profil prêt à l’emploi :
 ## Presse-papiers (copier-coller) PC ↔ session RDP
 
 Le profil a le presse-papiers partagé (`disableclipboard=0`). Si le copier-coller ne marche pas : (1) Dans Remmina, paramètres de la connexion → cocher « Partager le presse-papiers ». (2) Fermer la session et se reconnecter. (3) Le texte fonctionne en général ; pour les fichiers utiliser `scp`. (4) Sur la Pi : `sudo apt install -y xrdp && sudo systemctl restart xrdp`.
+
+---
+
+## Remmina ne se reconnecte pas après un reboot de la Pi
+
+Après un **reboot** (par ex. `ssh pavel@192.168.1.37 'sudo reboot'`), Remmina peut refuser de se connecter pendant un moment.
+
+1. **Attendre 1 à 2 minutes** que la Pi ait fini de démarrer (réseau + xrdp).
+2. Vérifier que la Pi répond : `ping 192.168.1.37` puis `ssh pavel@192.168.1.37`.
+3. Si le **RDP** ne répond toujours pas : en SSH sur la Pi, vérifier xrdp :  
+   `sudo systemctl status xrdp`  
+   Si le service est inactif ou en erreur :  
+   `sudo systemctl restart xrdp`  
+   Puis réessayer la connexion Remmina.

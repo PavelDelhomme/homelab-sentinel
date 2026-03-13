@@ -44,12 +44,21 @@ warn "Ne débranchez pas le câble réseau / partage de connexion pendant ce scr
 # --- Réparation dpkg/apt si interrompu ---
 if [[ "$FIX_DPKG" == "true" ]]; then
   info "Vérification de l’état dpkg/apt..."
+  for lock in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock; do
+    [[ ! -f "$lock" ]] && continue
+    pid=$(fuser "$lock" 2>/dev/null | tr -d ' ')
+    if [[ -n "$pid" ]]; then
+      warn "dpkg est utilisé par un autre processus (pid $pid). Attendez 2-5 min puis relancez : make bootstrap"
+      warn "Sur la Pi : sudo fuser -v /var/lib/dpkg/lock-frontend  pour voir quel processus tient le verrou."
+      err "Relancez le script quand aucun apt/dpkg ne tourne."
+    fi
+  done
   export DEBIAN_FRONTEND=noninteractive
-  if ! dpkg --configure -a; then
-    err "dpkg --configure -a a échoué. Corrigez manuellement (voir STATUS.md), puis relancez le script."
+  if ! dpkg --configure -a 2>/dev/null; then
+    err "dpkg --configure -a a échoué. Voir docs/pi_repair_dpkg.md. Corrigez puis relancez make bootstrap."
   fi
   if ! apt-get -f install -y; then
-    err "apt --fix-broken install a échoué. Vérifiez la connexion réseau, corrigez puis relancez."
+    err "apt --fix-broken install a échoué. Vérifiez la connexion réseau, voir docs/pi_repair_dpkg.md, puis relancez."
   fi
   info "dpkg/apt OK."
 fi

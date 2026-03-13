@@ -2,6 +2,8 @@
 
 Tu codes sur ton PC, tu déploies et tu mets à jour la Pi **sans quitter ta machine**. Tout est prévu pour que **tu n’aies rien à faire à la main** après une seule étape optionnelle (bootstrap).
 
+**Important** : **`make push`** / **`make update`** servent à **mettre à jour** un projet déjà déployé. Ils supposent que **Docker est déjà installé sur la Pi**. La première fois, il faut faire **`make install`** (qui installe Docker sur la Pi et démarre le backend). Sans ça, tu obtiens « docker : commande introuvable ».
+
 ---
 
 ## Ce que tu es obligé de faire (une seule fois, si la Pi n’est pas encore configurée)
@@ -28,8 +30,8 @@ Si la Pi n’est pas encore en 192.168.1.37 (première connexion en DHCP) : **`m
 |----------|------|
 | **`make bootstrap`** | **Une seule fois** : copie ta clé SSH sur la Pi (tu entres le mot de passe pavel une fois) et lance le script de config Pi (IP statique, SSH, xrdp, AZERTY, Docker sans mot de passe). Ensuite plus besoin de mot de passe pour `make install` / `make update`. |
 | **`make install`** | Première fois après bootstrap : Docker sur la Pi + backend + profil Remmina sur le PC. |
-| **`make update`** | Met à jour les fichiers sur la Pi et redémarre le backend (Docker). Aucune interaction. |
-| **`make push`** | Identique à `make update` (sync + redémarrage backend) — raccourci pour déployer. |
+| **`make update`** | Met à jour les fichiers sur la Pi et redémarre le backend (Docker). **À utiliser seulement après un `make install`** (Docker doit être installé sur la Pi). |
+| **`make push`** | Identique à `make update` (sync + redémarrage backend). **Première fois : faire `make install` avant.** |
 | **`make sync`** | Synchronise uniquement les fichiers (sans redémarrer le backend). |
 | **`make shell`** | Ouvre une session SSH sur la Pi (ou utilise **`ssh pi-homelab`** si tu as configuré `~/.ssh/config`). |
 | **`make status`** | Affiche l’état des conteneurs Docker sur la Pi. |
@@ -65,6 +67,9 @@ Tu peux surcharger l’IP ou l’utilisateur :
 ---
 
 ## Dépannage
+
+- **`make push` / `make update` : « docker : commande introuvable »**  
+  Docker n’est pas encore installé sur la Pi. **Lance d’abord `make install`** (une seule fois). C’est lui qui installe Docker sur la Pi et démarre le backend. Ensuite `make push` fonctionnera.
 
 - **`make install` ou `make update` : connexion refusée**  
   Vérifier que la Pi est allumée, sur le réseau (192.168.1.37), et que SSH est actif : `ssh pavel@192.168.1.37` ou `ssh pi-homelab` (si config SSH).

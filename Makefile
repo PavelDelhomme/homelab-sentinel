@@ -41,7 +41,9 @@ install: remmina-profile sync
 	ssh $(PI_TARGET) 'REPO_DIR=$(PI_DIR) bash -s' < scripts/pi_install_stack.sh
 
 # --- Update : sync + redémarrage du backend sur la Pi (Docker) ---
+# Nécessite d'avoir fait "make install" au moins une fois (Docker installé sur la Pi).
 update: sync
+	@ssh $(PI_TARGET) 'command -v docker >/dev/null 2>&1 || { echo ""; echo "*** Docker n'\''est pas installé sur la Pi. Lance d'\''abord : make install ***"; echo ""; exit 1; }'
 	ssh $(PI_TARGET) 'cd ~/'"$(PI_DIR)"'/backend && sudo docker compose up -d --build'
 
 # --- Push : identique à update (raccourci pour « pousser les mises à jour ») ---

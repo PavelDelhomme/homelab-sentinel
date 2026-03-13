@@ -49,6 +49,30 @@ L’**API** (FastAPI) est déjà prévue pour devices, énergie, caméras, gamel
 - **Santé des services** : l’API peut exposer un endpoint `/health` (déjà prévu ou à ajouter) : état de la BDD, du broker MQTT, des principaux services. L’app mobile affiche un indicateur « tout vert » ou des alertes.
 - **Métriques** : optionnel — Prometheus + Grafana sur la Pi, ou métriques simples exposées par l’API (compteurs MQTT, état des prises, etc.) pour les afficher dans le dashboard / l’app.
 
+---
+
+## Carte réseau et appareils connectés (prévu)
+
+Dans l’**interface web** (dashboard) :
+
+- **Carte en temps réel** des appareils connectés sur la box / le réseau : voir qui est connecté (IP, nom, type si détectable), avec mise à jour régulière. Reste à définir la source des données (ARP, API box si disponible, ou scan léger depuis la Pi) en restant **léger pour la Raspberry Pi**.
+- **Détection des appareils** : liste des clients DHCP ou des hôtes vus sur le réseau, affichée sur une carte ou un tableau.
+
+---
+
+## Inspection du trafic (prévu, léger)
+
+- **Voir en continu** les requêtes / modifications que font les appareils (sans tout intercepter) pour **détecter les problèmes** : par ex. logs des requêtes DNS, ou métriques légères (qui parle à qui, volumes). L’objectif est de rester **léger** pour la Pi (pas de capture complète du trafic, plutôt sondes ou intégration avec le routeur/box si une API existe).
+- À préciser selon la box (Bbox, etc.) et les outils disponibles (dnsmasq logs, Netflow, etc.).
+
+---
+
+## Redémarrage et actions depuis l’interface web
+
+- Depuis le **dashboard web** (et plus tard l’app mobile) : pouvoir **redémarrer** des services (backend, conteneurs Docker), voire la Pi ou la box (si un relais/watchdog est en place), de façon sécurisée (authentification, confirmation). À prévoir dans l’API (endpoints management) et dans l’UI.
+
+---
+
 Tout cela sera détaillé dans le guide et dans STATUS.md au fur et à mesure (phase « Interface complète » et « Management »).
 
 ---
